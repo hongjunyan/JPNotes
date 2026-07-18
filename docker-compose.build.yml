@@ -1,0 +1,12 @@
+# Build & push images to registry
+# Usage:
+#  docker compose -f docker-compose.build.yml build
+#  docker compose -f docker-compose.build.yml push
+services:
+  backend:
+    build: ./backend
+    image: hongjunyan/jpnotes-backend:v1.0.0
+
+  frontend:
+    build: ./frontend
+    image: hongjunyan/jpnotes-frontend:v1.0.0

@@ -2,15 +2,42 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import CodeMirror, { ReactCodeMirrorRef } from '@uiw/react-codemirror'
 import { markdown } from '@codemirror/lang-markdown'
-import { EditorView } from '@codemirror/view'
+import { redo } from '@codemirror/commands'
+import { EditorView, keymap } from '@codemirror/view'
 import { api } from '../../api/client'
-import { renderMarkdown } from '../../lib/markdown'
+import { renderMarkdown, HIGHLIGHT_COLORS, HighlightColor } from '../../lib/markdown'
 import TagInput from '../../components/TagInput'
+
+const HL_LABELS: Record<HighlightColor, string> = {
+  yellow: '黃色重點（Ctrl+Shift+H）',
+  green: '綠色重點',
+  blue: '藍色重點',
+  pink: '粉色重點',
+}
+
+const HL_MARK_RE = /^==(?:\{([a-z]+)\})?([\s\S]+?)==$/
+
+function wrapHighlight(text: string, color: HighlightColor): string {
+  return color === 'yellow' ? `==${text}==` : `=={${color}}${text}==`
+}
+
+/** Track the app theme (data-theme on <html>) so CodeMirror follows dark mode. */
+function useAppTheme(): 'light' | 'dark' {
+  const read = () => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+  const [theme, setTheme] = useState<'light' | 'dark'>(read)
+  useEffect(() => {
+    const obs = new MutationObserver(() => setTheme(read()))
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => obs.disconnect()
+  }, [])
+  return theme
+}
 
 export default function NoteEditPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const isNew = !id
+  const theme = useAppTheme()
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -18,6 +45,7 @@ export default function NoteEditPage() {
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState('')
   const cmRef = useRef<ReactCodeMirrorRef>(null)
+  const previewRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!id) return
@@ -31,11 +59,11 @@ export default function NoteEditPage() {
   const html = useMemo(() => renderMarkdown(content), [content])
 
   /** Replace current selection with furigana-marked text from the backend. */
-  const applyFurigana = useCallback(async (view: EditorView): Promise<boolean> => {
+  const applyFurigana = useCallback(async (view: EditorView) => {
     const { from, to } = view.state.selection.main
     if (from === to) {
       setStatus('請先選取要注音的文字')
-      return true
+      return
     }
     const selected = view.state.sliceDoc(from, to)
     try {
@@ -49,7 +77,30 @@ export default function NoteEditPage() {
     } catch (e) {
       setStatus(`注音失敗：${e}`)
     }
-    return true
+  }, [])
+
+  /** Wrap selection in ==highlight== markers; same color again removes, new color swaps. */
+  const applyHighlight = useCallback((view: EditorView, color: HighlightColor) => {
+    const { from, to } = view.state.selection.main
+    if (from === to) {
+      setStatus('請先選取要畫重點的文字')
+      return
+    }
+    const selected = view.state.sliceDoc(from, to)
+    const m = selected.match(HL_MARK_RE)
+    let insert: string
+    if (m) {
+      const current = (m[1] ?? 'yellow') as HighlightColor
+      insert = current === color ? m[2] : wrapHighlight(m[2], color)
+    } else {
+      insert = wrapHighlight(selected, color)
+    }
+    view.dispatch({
+      changes: { from, to, insert },
+      selection: { anchor: from, head: from + insert.length },
+    })
+    view.focus()
+    setStatus('')
   }, [])
 
   const uploadAndInsert = useCallback(async (view: EditorView, files: File[]) => {
@@ -66,21 +117,98 @@ export default function NoteEditPage() {
     }
   }, [])
 
+  const handleSave = useCallback(
+    async (exit = true) => {
+      if (saving) return
+      setSaving(true)
+      setStatus('')
+      try {
+        if (isNew) {
+          const created = await api.createNote({ title: title || '無題', content, tags })
+          if (exit) {
+            navigate(`/notes/${created.id}`)
+          } else {
+            navigate(`/notes/${created.id}/edit`, { replace: true })
+            setStatus('已儲存 ✓')
+          }
+        } else {
+          await api.updateNote(id!, { title, content, tags })
+          if (exit) {
+            navigate(`/notes/${id}`)
+          } else {
+            setStatus('已儲存 ✓')
+          }
+        }
+      } catch (e) {
+        setStatus(`儲存失敗：${e}`)
+      } finally {
+        setSaving(false)
+      }
+    },
+    [saving, isNew, title, content, tags, id, navigate],
+  )
+  const saveRef = useRef(handleSave)
+  saveRef.current = handleSave
+
+  // Shortcuts on window with capture:
+  // - matched by event.code so they work while a Chinese/Japanese IME is composing
+  //   (event.key becomes 'Process' then)
+  // - Ctrl+Shift+F / Alt+R for furigana instead of Alt+Shift+R, because Alt+Shift is
+  //   the Windows keyboard-layout switcher and swallows the combo
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const mod = e.ctrlKey || e.metaKey
+      if (mod && !e.shiftKey && !e.altKey && e.code === 'KeyS') {
+        e.preventDefault()
+        e.stopPropagation()
+        void saveRef.current(false)
+        return
+      }
+      const view = cmRef.current?.view
+      if (!view || !view.hasFocus) return
+      const furiganaCombo =
+        (mod && e.shiftKey && !e.altKey && e.code === 'KeyF') ||
+        (e.altKey && !mod && !e.shiftKey && e.code === 'KeyR')
+      if (furiganaCombo) {
+        e.preventDefault()
+        e.stopPropagation()
+        void applyFurigana(view)
+        return
+      }
+      if (mod && e.shiftKey && !e.altKey && e.code === 'KeyH') {
+        e.preventDefault()
+        e.stopPropagation()
+        applyHighlight(view, 'yellow')
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [applyFurigana, applyHighlight])
+
+  // One-way scroll sync: editor -> preview, by scroll ratio.
+  const handleCreateEditor = useCallback((view: EditorView) => {
+    const scroller = view.scrollDOM
+    scroller.addEventListener(
+      'scroll',
+      () => {
+        const preview = previewRef.current
+        if (!preview) return
+        const max = scroller.scrollHeight - scroller.clientHeight
+        if (max <= 0) return
+        const ratio = scroller.scrollTop / max
+        preview.scrollTop = ratio * (preview.scrollHeight - preview.clientHeight)
+      },
+      { passive: true },
+    )
+  }, [])
+
   const extensions = useMemo(
     () => [
       markdown(),
       EditorView.lineWrapping,
+      // CodeMirror 的 historyKeymap 只在 macOS 綁 Mod-Shift-z，Windows 上要自己補
+      keymap.of([{ key: 'Mod-Shift-z', run: redo, preventDefault: true }]),
       EditorView.domEventHandlers({
-        // 用 event.code 比對實體按鍵：中文/日文輸入法（IME）啟用時
-        // event.key 會變成 'Process'，一般 keymap 綁 'Alt-r' 會失效。
-        keydown(event, view) {
-          if (event.altKey && event.shiftKey && !event.ctrlKey && !event.metaKey && event.code === 'KeyR') {
-            event.preventDefault()
-            void applyFurigana(view)
-            return true
-          }
-          return false
-        },
         paste(event, view) {
           const files = Array.from(event.clipboardData?.files ?? [])
           if (files.some((f) => f.type.startsWith('image/'))) {
@@ -101,25 +229,8 @@ export default function NoteEditPage() {
         },
       }),
     ],
-    [applyFurigana, uploadAndInsert],
+    [uploadAndInsert],
   )
-
-  async function handleSave() {
-    setSaving(true)
-    setStatus('')
-    try {
-      if (isNew) {
-        const created = await api.createNote({ title: title || '無題', content, tags })
-        navigate(`/notes/${created.id}`)
-      } else {
-        await api.updateNote(id!, { title, content, tags })
-        navigate(`/notes/${id}`)
-      }
-    } catch (e) {
-      setStatus(`儲存失敗：${e}`)
-      setSaving(false)
-    }
-  }
 
   return (
     <div className="page page-wide">
@@ -131,27 +242,50 @@ export default function NoteEditPage() {
           onChange={(e) => setTitle(e.target.value)}
         />
         <div className="btn-group">
-          <button
-            className="btn"
-            title="選取文字後標注振り仮名（Alt+Shift+R）"
-            onClick={() => {
-              const view = cmRef.current?.view
-              if (view) void applyFurigana(view)
-            }}
-          >
-            ふりがな
-          </button>
           <button className="btn" onClick={() => navigate(-1)}>
             取消
           </button>
-          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          <button className="btn btn-primary" onClick={() => void handleSave()} disabled={saving}>
             {saving ? '儲存中…' : '儲存'}
           </button>
         </div>
       </div>
 
       <TagInput value={tags} onChange={setTags} />
-      {status && <p className="status-msg">{status}</p>}
+
+      <div className="editor-toolbar">
+        <button
+          className="tool-btn"
+          title="選取文字後標注振り仮名(Ctrl+Shift+F)"
+          onClick={() => {
+            const view = cmRef.current?.view
+            if (view) void applyFurigana(view)
+          }}
+        >
+          <ruby>
+            振<rt>ふ</rt>
+          </ruby>
+          り仮名
+        </button>
+        <span className="toolbar-divider" />
+        <span className="toolbar-label">畫重點</span>
+        {HIGHLIGHT_COLORS.map((c) => (
+          <button
+            key={c}
+            className={`hl-swatch hl-swatch-${c}`}
+            title={HL_LABELS[c]}
+            onClick={() => {
+              const view = cmRef.current?.view
+              if (view) applyHighlight(view, c)
+            }}
+          />
+        ))}
+        {status ? (
+          <span className="toolbar-status">{status}</span>
+        ) : (
+          <span className="toolbar-hint">選取文字後按工具鈕．Ctrl+S 儲存</span>
+        )}
+      </div>
 
       <div className="editor-panes">
         <div className="editor-pane">
@@ -159,12 +293,15 @@ export default function NoteEditPage() {
             ref={cmRef}
             value={content}
             height="100%"
+            theme={theme}
             extensions={extensions}
             onChange={setContent}
-            placeholder={'用 Markdown 書寫。選取漢字按 Alt+Shift+R 或「ふりがな」鈕自動注音；貼上/拖曳圖片即可插入。'}
+            onCreateEditor={handleCreateEditor}
+            basicSetup={{ lineNumbers: false, foldGutter: false, highlightActiveLine: true }}
+            placeholder={'用 Markdown 書寫。選取漢字按 Ctrl+Shift+F 自動注音；選取文字按上方色點畫重點；貼上/拖曳圖片即可插入。'}
           />
         </div>
-        <div className="editor-pane preview-pane">
+        <div className="editor-pane preview-pane" ref={previewRef}>
           <article className="prose" dangerouslySetInnerHTML={{ __html: html }} />
         </div>
       </div>

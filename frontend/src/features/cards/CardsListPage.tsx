@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Card, CardType, TagOut, api } from '../../api/client'
 import CardModal, { CardModalInitial } from '../../components/CardModal'
+import SearchInput from '../../components/SearchInput'
 import { speakJa, ttsAvailable } from '../../lib/tts'
 
 const TYPE_TABS: { key: CardType | 'all'; label: string }[] = [
@@ -70,13 +71,7 @@ export default function CardsListPage() {
         </button>
       </div>
 
-      <input
-        className="search-input"
-        type="search"
-        placeholder="搜尋卡片（單字、讀音、意思、例句）…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
+      <SearchInput placeholder="搜尋卡片（單字、讀音、意思、例句）…" onSearch={setQuery} />
 
       <div className="tag-row">
         {TYPE_TABS.map((t) => (

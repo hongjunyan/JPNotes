@@ -1,7 +1,7 @@
 /* ---------- theme tokens ---------- */
 :root {
-  --font-ui: 'Noto Sans JP', 'Microsoft JhengHei', system-ui, sans-serif;
-  --font-prose: 'Noto Serif JP', 'Yu Mincho', serif;
+  --font-ui: 'Zen Kaku Gothic New', 'Noto Sans JP', 'Microsoft JhengHei', system-ui, sans-serif;
+  --font-prose: 'Shippori Mincho', 'Noto Serif JP', 'Yu Mincho', serif;
 
   --bg: #faf9f6;
   --bg-raised: #ffffff;
@@ -13,6 +13,13 @@
   --chip-bg: #efece3;
   --code-bg: #f0eee8;
   --shadow: 0 1px 3px rgb(0 0 0 / 0.06), 0 4px 14px rgb(0 0 0 / 0.04);
+  --shadow-hover: 0 2px 6px rgb(0 0 0 / 0.07), 0 10px 26px rgb(0 0 0 / 0.09);
+
+  /* highlight (畫重點) colors */
+  --hl-yellow: #f8e08e;
+  --hl-green: #c4e5ae;
+  --hl-blue: #b9dbf4;
+  --hl-pink: #f6cbda;
 }
 
 :root[data-theme='dark'] {
@@ -26,6 +33,12 @@
   --chip-bg: #33312c;
   --code-bg: #2e2c28;
   --shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+  --shadow-hover: 0 4px 18px rgb(0 0 0 / 0.5);
+
+  --hl-yellow: #6d5a1c;
+  --hl-green: #3d5c2e;
+  --hl-blue: #2c4d6b;
+  --hl-pink: #6b3350;
 }
 
 /* ---------- base ---------- */
@@ -38,6 +51,8 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   transition: background 0.2s, color 0.2s;
 }
 
@@ -294,11 +309,88 @@ body {
   margin: 0 0 0.5rem;
 }
 
+/* ---------- editor toolbar ---------- */
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding: 0.4rem 0.7rem;
+  margin-bottom: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-raised);
+}
+.tool-btn {
+  display: inline-flex;
+  align-items: flex-end;
+  padding: 0.25rem 0.7rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 0.88rem;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.tool-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.tool-btn rt {
+  font-size: 0.55em;
+  color: var(--accent);
+}
+.toolbar-divider {
+  width: 1px;
+  height: 1.3rem;
+  background: var(--border);
+}
+.toolbar-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.hl-swatch {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  border: 1px solid rgb(0 0 0 / 0.15);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s;
+}
+.hl-swatch:hover {
+  transform: scale(1.18);
+}
+.hl-swatch-yellow {
+  background: var(--hl-yellow);
+}
+.hl-swatch-green {
+  background: var(--hl-green);
+}
+.hl-swatch-blue {
+  background: var(--hl-blue);
+}
+.hl-swatch-pink {
+  background: var(--hl-pink);
+}
+.toolbar-hint {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.toolbar-status {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--accent);
+}
+
 .editor-panes {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
-  height: calc(100vh - 220px);
+  height: calc(100vh - 260px);
   min-height: 400px;
 }
 .editor-pane {
@@ -309,13 +401,28 @@ body {
 }
 .editor-pane .cm-editor {
   height: 100%;
-  font-size: 0.95rem;
+  font-size: 1rem;
+  background: var(--bg-raised) !important;
+}
+.editor-pane .cm-scroller {
+  font-family: var(--font-ui);
+  line-height: 1.95;
+}
+.editor-pane .cm-content {
+  padding: 0.8rem 0;
+}
+.editor-pane .cm-line {
+  padding: 0 1rem;
 }
 .editor-pane .cm-editor.cm-focused {
   outline: none;
 }
 .preview-pane {
   padding: 1.2rem 1.6rem;
+}
+.preview-pane .prose {
+  font-size: 1.05rem;
+  line-height: 2.1;
 }
 
 @media (max-width: 900px) {
@@ -331,13 +438,25 @@ body {
 /* ---------- prose (rendered markdown) ---------- */
 .prose {
   font-family: var(--font-prose);
-  font-size: 1.08rem;
-  line-height: 2.1;
-  letter-spacing: 0.02em;
+  font-size: 1.13rem;
+  line-height: 2.2;
+  letter-spacing: 0.03em;
+}
+.prose ::selection {
+  background: var(--accent-soft);
+}
+.page > .prose {
+  margin-top: 1.2rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--border);
 }
 
 .note-title {
   font-family: var(--font-prose);
+  font-size: 1.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
 }
 
 .prose h1,
@@ -346,7 +465,8 @@ body {
   font-family: var(--font-prose);
   font-weight: 600;
   line-height: 1.6;
-  margin: 1.6em 0 0.6em;
+  margin: 1.7em 0 0.6em;
+  letter-spacing: 0.04em;
 }
 .prose h1 {
   font-size: 1.55rem;
@@ -374,6 +494,28 @@ body {
   color: var(--accent);
   letter-spacing: 0;
   font-family: var(--font-ui);
+  font-weight: 500;
+}
+
+/* 畫重點：像螢光筆一樣只覆蓋文字下半部，注音（rt）不被蓋到 */
+mark.hl {
+  color: inherit;
+  padding: 0 0.12em;
+  margin: 0 -0.05em;
+  border-radius: 3px;
+  background: linear-gradient(transparent 42%, var(--hl-c, var(--hl-yellow)) 42%, var(--hl-c, var(--hl-yellow)) 96%, transparent 96%);
+}
+mark.hl-yellow {
+  --hl-c: var(--hl-yellow);
+}
+mark.hl-green {
+  --hl-c: var(--hl-green);
+}
+mark.hl-blue {
+  --hl-c: var(--hl-blue);
+}
+mark.hl-pink {
+  --hl-c: var(--hl-pink);
 }
 
 .prose a {
@@ -551,16 +693,20 @@ body {
   gap: 0.75rem;
 }
 .vocab-card {
-  padding: 0.9rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  padding: 1.05rem 1.2rem 0.9rem;
   background: var(--bg-raised);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   box-shadow: var(--shadow);
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s;
 }
 .vocab-card:hover {
   border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
 }
 .vocab-card-head {
   display: flex;
@@ -570,17 +716,22 @@ body {
 }
 .vocab-word {
   font-family: var(--font-prose);
-  font-size: 1.35rem;
+  font-size: 1.5rem;
+  font-weight: 500;
   line-height: 1.9;
+  letter-spacing: 0.02em;
 }
 .vocab-word rt {
-  font-size: 0.55rem;
+  font-size: 0.42em;
   color: var(--accent);
   font-family: var(--font-ui);
+  font-weight: 500;
+  letter-spacing: 0;
 }
 .type-badge {
   font-size: 0.7rem;
-  padding: 0.12rem 0.5rem;
+  font-weight: 500;
+  padding: 0.14rem 0.55rem;
   border-radius: 999px;
   white-space: nowrap;
   margin-top: 0.4rem;
@@ -594,14 +745,22 @@ body {
   color: var(--text-muted);
 }
 .vocab-meaning {
-  margin-top: 0.2rem;
+  margin-top: 0.35rem;
   font-size: 0.95rem;
+  line-height: 1.7;
 }
 .vocab-example {
-  margin-top: 0.3rem;
-  font-size: 0.82rem;
+  margin-top: 0.55rem;
+  padding: 0.1rem 0 0.1rem 0.7em;
+  border-left: 3px solid var(--accent-soft);
+  font-size: 0.86rem;
   color: var(--text-muted);
   font-family: var(--font-prose);
+  line-height: 1.9;
+}
+.vocab-card .note-card-meta {
+  margin-top: auto;
+  padding-top: 0.65rem;
 }
 .due-now {
   color: var(--accent);

@@ -204,10 +204,19 @@ CREATE VIRTUAL TABLE cards_fts USING fts5(
 - 渲染：`<ruby>漢字<rt>かんじ</rt></ruby>`。
 - 編輯器輔助流程：
   1. 在 CodeMirror 選取漢字文字。
-  2. 按快捷鍵（例：`Ctrl+R`）。
+  2. 按快捷鍵 `Ctrl+Shift+F`（或 `Alt+R`）或工具列「振り仮名」鈕。
+     以 window capture + `event.code` 比對實體按鍵：IME 啟用時 `event.key` 會變成
+     `Process`，且 Windows 上 `Alt+Shift` 是輸入法切換鍵，故不用 `Alt+Shift+R`。
   3. 前端呼叫 `POST /api/dict/furigana`，後端用 `fugashi` 回傳讀音建議。
-  4. 於編輯器就地把選取內容替換為 `{選取|建議讀音}`，游標停在讀音處供修正。
+  4. 於編輯器就地把選取內容替換為 `{選取|建議讀音}`。
 - `markdown.ts` 內以 markdown-it inline rule 解析此語法；rule 在程式碼區塊與行內程式碼中不作用。
+
+### 畫重點（螢光筆）語法
+
+- 語法：`==重點==`（預設黃色）；指定顏色 `=={green}重點==`，支援 `yellow / green / blue / pink`。
+- 渲染：`<mark class="hl hl-{color}">`，以 CSS 漸層只覆蓋文字下半部（螢光筆效果），振り仮名不被蓋到；mark 內容仍走 inline 解析，可與 ruby 併用。
+- 編輯器：工具列四個色點按鈕，或 `Ctrl+Shift+H`（黃色）。同色再按一次取消、不同色直接換色。
+- 其他快捷鍵：`Ctrl+S` 儲存（停留在編輯頁）。
 
 ---
 

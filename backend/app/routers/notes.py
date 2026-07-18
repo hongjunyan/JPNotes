@@ -13,6 +13,7 @@ from ..services import cleanup
 router = APIRouter(prefix="/notes", tags=["notes"])
 
 RUBY_RE = re.compile(r"\{([^{}|]+)\|([^{}|]+)\}")
+HIGHLIGHT_RE = re.compile(r"==(?:\{[a-z]+\})?(.+?)==", re.S)
 MD_IMAGE_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 MD_MARKS_RE = re.compile(r"[#*`>\[\]()_~-]")
 
@@ -24,6 +25,7 @@ def _now() -> str:
 def _plain_excerpt(content: str, length: int = 120) -> str:
     txt = MD_IMAGE_RE.sub("", content)
     txt = RUBY_RE.sub(r"\1", txt)
+    txt = HIGHLIGHT_RE.sub(r"\1", txt)
     txt = MD_MARKS_RE.sub("", txt)
     txt = " ".join(txt.split())
     return txt[:length]

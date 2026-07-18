@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, NoteListItem, TagOut } from '../../api/client'
 import { formatDateTime } from '../../lib/format'
+import SearchInput from '../../components/SearchInput'
 
 export default function NotesListPage() {
   const [query, setQuery] = useState('')
@@ -35,13 +36,7 @@ export default function NotesListPage() {
         </Link>
       </div>
 
-      <input
-        className="search-input"
-        type="search"
-        placeholder="搜尋筆記（標題、內文、假名）…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
+      <SearchInput placeholder="搜尋筆記（標題、內文、假名）…" onSearch={setQuery} />
 
       {tags.length > 0 && (
         <div className="tag-row">

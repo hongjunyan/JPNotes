@@ -2,6 +2,31 @@
 
 個人用日文學習網站：Markdown 筆記（含振り仮名注音、插圖）、全文搜尋。設計細節見 [DESIGN.md](DESIGN.md)。
 
+## 正式部署（docker-compose）
+
+Step1. 環境變數 (預設參數即可運行)
+
+```bash
+cp .env.example .env   # 視需要調整 APP_PORT
+```
+
+Step2. 下載字典
+
+```bash
+python backend/scripts/fetch_jamdict_db.py   # 第一次：下載字典到 ./db_data/jamdict/
+```
+
+或是可以直接下載[jamdict/](https://drive.google.com/drive/folders/1ur2mi1HXbbRm3J9c8RSwqq5UL92llh4X?usp=sharing), 然後手動放入`./db_data`
+
+Step3. 運行服務
+
+```
+docker compose -f docker-compose.prod.yaml up -d
+# 瀏覽 http://localhost:8080
+```
+
+所有資料（SQLite、圖片、jamdict 字典）集中在 `./db_data/`（bind mount 進容器的 `/app/data`），容器重建不會遺失；備份整個 `db_data` 資料夾即可。
+
 ## 本機開發
 
 ```powershell
@@ -19,16 +44,7 @@ npm install
 npm run dev                                    # http://localhost:5173（/api 已 proxy 到 8000）
 ```
 
-## 正式部署（docker-compose）
 
-```bash
-cp .env.example .env   # 視需要調整 APP_PORT
-python backend/scripts/fetch_jamdict_db.py   # 第一次：下載字典到 ./db_data/jamdict/
-docker compose up -d --build
-# 瀏覽 http://localhost:8080
-```
-
-所有資料（SQLite、圖片、jamdict 字典）集中在 `./db_data/`（bind mount 進容器的 `/app/data`），容器重建不會遺失；備份整個 `db_data` 資料夾即可。
 
 ## 使用方式
 
@@ -44,3 +60,4 @@ docker compose up -d --build
 - **儀表板**（首頁）：今日待複習、連續學習天數（streak）、30 天保持率、複習熱力圖（近半年）。
 - **TTS 發音**：卡片與複習頁的 🔊 用瀏覽器語音唸日文（單字與例句）。
 - **漢字資訊**：複習卡背面點漢字、或筆記閱讀頁選取單一漢字，查看筆畫、JLPT 等級、音訓讀與字義（KanjiDic2）。
+
