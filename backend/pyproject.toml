@@ -1,0 +1,24 @@
+[project]
+name = "jpnotes-backend"
+version = "0.1.0"
+description = "JPNotes backend - Japanese learning notes API"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlmodel>=0.0.22",
+    "pydantic-settings>=2.4",
+    "python-multipart>=0.0.9",
+    "fugashi>=1.3",
+    "unidic-lite>=1.0.8",
+    "jamdict>=0.1a11",
+]
+# dictionary data is NOT a pip dependency: run scripts/fetch_jamdict_db.py once
+# to place it in <repo>/db_data/jamdict/jamdict.db (shared by local dev and docker)
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app", "app.routers", "app.services"]

@@ -1,0 +1,15 @@
+# env
+.env
+
+# backend
+backend/data/
+__pycache__/
+*.egg-info/
+.venv/
+
+# frontend
+node_modules/
+frontend/dist/
+
+# db_data
+db_data/
