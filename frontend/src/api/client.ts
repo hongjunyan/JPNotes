@@ -130,8 +130,14 @@ export interface ImageOut {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, init)
   if (!res.ok) {
-    const detail = await res.text().catch(() => '')
-    throw new Error(`API ${res.status}: ${detail}`)
+    const raw = await res.text().catch(() => '')
+    let detail = raw
+    try {
+      detail = JSON.parse(raw).detail ?? raw
+    } catch {
+      /* body is not JSON; keep the raw text */
+    }
+    throw new Error(detail || `API ${res.status}`)
   }
   if (res.status === 204) return undefined as T
   return res.json()

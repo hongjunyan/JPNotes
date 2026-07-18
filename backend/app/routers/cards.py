@@ -56,6 +56,23 @@ def _validate_type(card_type: str) -> None:
         raise HTTPException(status_code=422, detail=f"type must be one of {sorted(CARD_TYPES)}")
 
 
+def _norm_reading(reading: str | None) -> str | None:
+    return (reading or "").strip() or None
+
+
+def _find_duplicate(
+    session: Session, card_type: str, word: str, reading: str | None, exclude_id: int | None = None
+) -> Card | None:
+    reading_norm = _norm_reading(reading)
+    rows = session.exec(select(Card).where(Card.type == card_type, Card.word == word)).all()
+    for existing in rows:
+        if exclude_id is not None and existing.id == exclude_id:
+            continue
+        if _norm_reading(existing.reading) == reading_norm:
+            return existing
+    return None
+
+
 @router.get("", response_model=CardListOut)
 def list_cards(
     q: str | None = Query(default=None),
@@ -102,12 +119,15 @@ def list_cards(
 @router.post("", response_model=CardOut, status_code=201)
 def create_card(payload: CardCreate, session: Session = Depends(get_session)):
     _validate_type(payload.type)
-    if not payload.word.strip():
+    word = payload.word.strip()
+    if not word:
         raise HTTPException(status_code=422, detail="word is empty")
+    if _find_duplicate(session, payload.type, word, payload.reading) is not None:
+        raise HTTPException(status_code=409, detail=f"卡片已存在：「{word}」")
     now = _now()
     card = Card(
         type=payload.type,
-        word=payload.word.strip(),
+        word=word,
         reading=payload.reading,
         meaning_en=payload.meaning_en,
         meaning_zh=payload.meaning_zh,
@@ -143,6 +163,13 @@ def update_card(card_id: int, payload: CardUpdate, session: Session = Depends(ge
     tags = data.pop("tags", None)
     if "type" in data:
         _validate_type(data["type"])
+    new_type = data.get("type", card.type)
+    new_word = (data["word"].strip() if "word" in data else card.word)
+    new_reading = data.get("reading", card.reading) if "reading" in data else card.reading
+    if _find_duplicate(session, new_type, new_word, new_reading, exclude_id=card_id) is not None:
+        raise HTTPException(status_code=409, detail=f"卡片已存在：「{new_word}」")
+    if "word" in data:
+        data["word"] = new_word
     for key, value in data.items():
         setattr(card, key, value)
     if tags is not None:
